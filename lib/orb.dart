@@ -32,6 +32,11 @@ class _OrbState extends State<Orb> with TickerProviderStateMixin {
   late final AnimationController _spin =
       AnimationController(vsync: this, duration: const Duration(seconds: 16))
         ..repeat();
+  // Fast indeterminate "processing" spinner shown while fetching / saving /
+  // muting (any working step that has no % yet), so the orb clearly looks busy.
+  late final AnimationController _sweep = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 1100))
+    ..repeat();
 
   // Android: FrameLayout 290dp, glow 232dp, opaque orb 232-2*26 = 180dp.
   static const double _frame = 290;
@@ -41,6 +46,7 @@ class _OrbState extends State<Orb> with TickerProviderStateMixin {
   @override
   void dispose() {
     _spin.dispose();
+    _sweep.dispose();
     super.dispose();
   }
 
@@ -102,12 +108,12 @@ class _OrbState extends State<Orb> with TickerProviderStateMixin {
             // download progress ring around the sphere
             if (widget.phase == OrbPhase.working)
               AnimatedBuilder(
-                animation: _spin,
+                animation: _sweep,
                 builder: (_, _) => SizedBox(
                   width: _orb + 30,
                   height: _orb + 30,
                   child: CustomPaint(
-                    painter: _ProgressPainter(widget.progress, _spin.value),
+                    painter: _ProgressPainter(widget.progress, _sweep.value),
                   ),
                 ),
               ),
@@ -171,7 +177,20 @@ class _ProgressPainter extends CustomPainter {
     if (progress >= 0) {
       canvas.drawArc(rect, -math.pi / 2, 2 * math.pi * progress, false, ring);
     } else {
-      canvas.drawArc(rect, spin * 2 * math.pi, math.pi * 0.55, false, ring);
+      // Indeterminate "processing" comet: a faint tail + a bright fast-moving
+      // head, so the orb clearly reads as busy while fetching/saving.
+      final head = spin * 2 * math.pi;
+      canvas.drawArc(
+          rect,
+          head - math.pi * 0.85,
+          math.pi * 0.85,
+          false,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeCap = StrokeCap.round
+            ..strokeWidth = 4
+            ..color = const Color(0x336EE7B7));
+      canvas.drawArc(rect, head, math.pi * 0.42, false, ring);
     }
   }
 
