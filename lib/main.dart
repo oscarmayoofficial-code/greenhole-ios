@@ -11,6 +11,7 @@ import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'downloader.dart';
 import 'mute.dart';
 import 'orb.dart';
+import 'videos.dart';
 
 const String kAlbum = 'Green Hole';
 final RegExp _urlRe = RegExp(r'https?://[^\s]+', caseSensitive: false);
@@ -384,20 +385,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   void _showVideos() {
-    showDialog<void>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Your videos'),
-        content: const Text(
-          'Saved videos are in your Photos app, in the "Green Hole" album.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const VideosPage()),
     );
   }
 
