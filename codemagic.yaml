@@ -28,7 +28,7 @@ workflows:
       cocoapods: default
       vars:
         BUNDLE_ID: "com.oscar.greenhole"
-        APP_STORE_APPLE_ID: 0000000000  # replace with the numeric Apple ID of the app record
+        APP_STORE_APPLE_ID: 6802589108  # Green Hole app record
     scripts:
       - name: Get Flutter packages
         script: flutter pub get
