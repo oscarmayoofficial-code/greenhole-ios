@@ -169,7 +169,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       );
       _setPhase(OrbPhase.working, 'Saving to Photos…', progress: -1);
       await _ensurePhotosAccess();
-      await Gal.putVideo(result.file.path, album: kAlbum);
+      await _saveVideo(result.file.path);
       await _safeDelete(result.file.path);
       _setPhase(OrbPhase.done, 'Saved to Photos ✓');
     } catch (e) {
@@ -189,7 +189,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       final mutedPath = await Muter.removeAudio(picked.path);
       _setPhase(OrbPhase.working, 'Saving to Photos…', progress: -1);
       await _ensurePhotosAccess();
-      await Gal.putVideo(mutedPath, album: kAlbum);
+      await _saveVideo(mutedPath);
       await _safeDelete(mutedPath);
       _setPhase(OrbPhase.done, 'Muted video saved to Photos ✓');
     } catch (e) {
@@ -200,10 +200,23 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Future<void> _ensurePhotosAccess() async {
-    if (await Gal.hasAccess()) return;
-    final granted = await Gal.requestAccess();
-    if (!granted) {
-      throw Exception('Photos access denied. Enable it in Settings to save.');
+    // Saving into a named album needs FULL library access on iOS; add-only
+    // access silently fails to create/use the album.
+    if (await Gal.hasAccess(toAlbum: true)) return;
+    if (await Gal.requestAccess(toAlbum: true)) return;
+    // fall back to add-only (camera roll) so the video still lands somewhere
+    if (await Gal.hasAccess() || await Gal.requestAccess()) return;
+    throw Exception('Photos access denied. Enable it in Settings to save.');
+  }
+
+  /// Save into the "Green Hole" album; if that fails (e.g. only add-only
+  /// access was granted), fall back to the camera roll so the video is never
+  /// silently lost.
+  Future<void> _saveVideo(String path) async {
+    try {
+      await Gal.putVideo(path, album: kAlbum);
+    } catch (_) {
+      await Gal.putVideo(path);
     }
   }
 
