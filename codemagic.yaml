@@ -1,41 +1,36 @@
-# Cloud macOS build for Green Hole (iOS) — you have no Mac, this builds the IPA
-# for you on Codemagic's macOS machines and uploads it to App Store Connect.
-#
-# ONE-TIME SETUP (after you have the paid Apple Developer account):
-#   1. Push this project (D:\ios\greenhole) to a GitHub/GitLab repo.
-#   2. In Codemagic: add the app from that repo.
-#   3. Codemagic > Teams > Integrations > App Store Connect: create an API key
-#      integration and name it exactly  "AppStoreConnect"  (matches below).
-#   4. Register the bundle id  com.oscar.greenhole  in App Store Connect and
-#      create the app record there (name: Green Hole).
-#   5. Push a commit — this workflow runs, signs, and uploads to TestFlight.
-#
-# No Mac and no local Xcode are ever needed; everything below runs in the cloud.
+# Cloud macOS build for Green Hole (iOS). API-key driven signing + TestFlight —
+# NO Codemagic UI integration needed; the App Store Connect API key is passed to
+# the build as env vars (APP_STORE_CONNECT_ISSUER_ID / _KEY_IDENTIFIER /
+# _PRIVATE_KEY) at trigger time.
 
 workflows:
   ios-release:
     name: Green Hole iOS release
     instance_type: mac_mini_m2
     max_build_duration: 60
-    integrations:
-      app_store_connect: AppStoreConnect
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.oscar.greenhole
       flutter: stable
       xcode: latest
       cocoapods: default
       vars:
         BUNDLE_ID: "com.oscar.greenhole"
-        APP_STORE_APPLE_ID: 6802589108  # Green Hole app record
+        APP_STORE_APPLE_ID: 6802589108
     scripts:
       - name: Get Flutter packages
         script: flutter pub get
       - name: Install CocoaPods dependencies
         script: |
           find . -name "Podfile" -execdir pod install \;
-      - name: Set up code signing
+      - name: Initialize keychain
+        script: keychain initialize
+      - name: Fetch signing files (create if missing)
+        script: |
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+      - name: Add certificates to keychain
+        script: keychain add-certificates
+      - name: Set up code signing settings on Xcode project
         script: xcode-project use-profiles
       - name: Flutter analyze
         script: flutter analyze
@@ -51,8 +46,8 @@ workflows:
       - flutter_drive.log
     publishing:
       app_store_connect:
-        auth: integration
-        # Uploads to TestFlight automatically. Flip submit_to_app_store to true
-        # only when you're ready to push to actual App Store review.
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: true
         submit_to_app_store: false
