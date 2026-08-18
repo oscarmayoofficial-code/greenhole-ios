@@ -247,43 +247,142 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final linkReady = _phase == OrbPhase.idle && _clipboardUrl != null;
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text('GREEN HOLE',
-            style: TextStyle(letterSpacing: 3, fontWeight: FontWeight.w700)),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment(0.0, -0.16),
+            radius: 1.15,
+            colors: [Color(0xFF171A18), Color(0xFF040605)],
+          ),
+        ),
+        child: SafeArea(
+          child: Stack(
+            children: [
+              // info (top-left)
+              Positioned(
+                top: 6,
+                left: 6,
+                child: IconButton(
+                  icon: const Icon(Icons.info_outline,
+                      color: Color(0xFFB9C0C4), size: 26),
+                  onPressed: _showInfo,
+                ),
+              ),
+              // support / donate (top-right)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: IconButton(
+                  icon: const Icon(Icons.favorite_border,
+                      color: Color(0xFFB9C0C4), size: 26),
+                  onPressed: _showSupport,
+                ),
+              ),
+              // brand
+              const Positioned(
+                top: 78,
+                left: 0,
+                right: 0,
+                child: Text(
+                  'GREEN HOLE',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: Color(0xFFD9DEE2),
+                      fontSize: 19,
+                      fontWeight: FontWeight.w300,
+                      letterSpacing: 7),
+                ),
+              ),
+              // center: orb + status
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Orb(
+                      phase: _phase,
+                      progress: _progress,
+                      linkReady: linkReady,
+                      onTap: _busy ? null : _onOrbTap,
+                      onLongPress: _busy ? null : _onOrbLongPress,
+                    ),
+                    const SizedBox(height: 18),
+                    _StatusText(
+                        phase: _phase,
+                        status: _status,
+                        clipboardUrl: _clipboardUrl),
+                  ],
+                ),
+              ),
+              // bottom: VIDEOS
+              Positioned(
+                bottom: 18,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: InkWell(
+                    onTap: _showVideos,
+                    borderRadius: BorderRadius.circular(14),
+                    child: const Padding(
+                      padding: EdgeInsets.all(10),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.video_library_outlined,
+                              color: Color(0xFF10B981), size: 28),
+                          SizedBox(height: 5),
+                          Text('VIDEOS',
+                              style: TextStyle(
+                                  color: Color(0xFF10B981),
+                                  fontSize: 12,
+                                  letterSpacing: 3)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSupport() {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Support Green Hole'),
+        content: const Text(
+          'Green Hole is free. If it helps you, please leave a nice rating on '
+          'the App Store — that keeps it going. Thank you! 💚',
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline),
-            onPressed: _showInfo,
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
           ),
         ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Orb(
-              phase: _phase,
-              progress: _progress,
-              onTap: _busy ? null : _onOrbTap,
-              onLongPress: _busy ? null : _onOrbLongPress,
-            ),
-            const SizedBox(height: 40),
-            _StatusText(
-                phase: _phase, status: _status, clipboardUrl: _clipboardUrl),
-          ],
+    );
+  }
+
+  void _showVideos() {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Your videos'),
+        content: const Text(
+          'Saved videos are in your Photos app, in the "Green Hole" album.',
         ),
-      ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 28),
-        child: Text(
-          'TAP to save the copied link   ·   HOLD to remove sound',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
-        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }
@@ -337,26 +436,18 @@ class _StatusText extends StatelessWidget {
       );
     }
     if (clipboardUrl != null) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Column(
-          children: [
-            Text('Link ready',
-                style: TextStyle(
-                    color: const Color(0xFF35E08B),
-                    fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            Text(
-              clipboardUrl!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-            ),
-          ],
-        ),
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 32),
+        child: Text('Link ready — tap the circle to save',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Color(0xFF34D399), fontSize: 13)),
       );
     }
-    return Text('Copy a video link to begin',
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.5)));
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 24),
+      child: Text('Copy a video link, then tap  ·  hold to remove sound',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Color(0xFF9AA0A6), fontSize: 13)),
+    );
   }
 }
