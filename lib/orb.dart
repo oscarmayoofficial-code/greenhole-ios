@@ -1,12 +1,13 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 enum OrbPhase { idle, working, done, error }
 
-/// The central tappable orb — a glowing green sphere wrapped in two rotating
-/// HUD rings (arcs + tick marks), matching the Android Green Hole app.
-/// Tap = download the copied link, long-press = mute a picked video.
+/// The central tappable orb — an exact reproduction of the Android Green Hole
+/// orb: a soft green glow, two rotating HUD rings (the actual Android vector
+/// art via SVG), and the green sphere on top. Tap = download, long-press = mute.
 class Orb extends StatefulWidget {
   const Orb({
     super.key,
@@ -29,49 +30,94 @@ class Orb extends StatefulWidget {
 
 class _OrbState extends State<Orb> with TickerProviderStateMixin {
   late final AnimationController _spin =
-      AnimationController(vsync: this, duration: const Duration(seconds: 14))
+      AnimationController(vsync: this, duration: const Duration(seconds: 16))
         ..repeat();
-  late final AnimationController _pulse =
-      AnimationController(vsync: this, duration: const Duration(seconds: 2))
-        ..repeat(reverse: true);
+
+  // Android: FrameLayout 290dp, glow 232dp, opaque orb 232-2*26 = 180dp.
+  static const double _frame = 290;
+  static const double _glow = 232;
+  static const double _orb = 180;
 
   @override
   void dispose() {
     _spin.dispose();
-    _pulse.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    const size = 290.0;
+    final err = widget.phase == OrbPhase.error;
     return GestureDetector(
       onTap: widget.onTap,
       onLongPress: widget.onLongPress,
       behavior: HitTestBehavior.opaque,
-      child: AnimatedBuilder(
-        animation: Listenable.merge([_spin, _pulse]),
-        builder: (context, _) {
-          return SizedBox(
-            width: size,
-            height: size,
-            child: CustomPaint(
-              painter: _OrbPainter(
-                phase: widget.phase,
-                progress: widget.progress,
-                spin: _spin.value,
-                pulse: _pulse.value,
+      child: SizedBox(
+        width: _frame,
+        height: _frame,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // soft outer glow (circle_green layer 1)
+            Container(
+              width: _glow,
+              height: _glow,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [Color(0x3310B981), Color(0x1810B981), Color(0x0010B981)],
+                  stops: [0.0, 0.5, 1.0],
+                ),
               ),
-              child: Center(child: _centerLabel()),
             ),
-          );
-        },
+            // rotating HUD rings (exact Android vectors)
+            RotationTransition(
+              turns: _spin,
+              child: SvgPicture.asset('assets/hud_ring_mid.svg',
+                  width: _frame, height: _frame),
+            ),
+            RotationTransition(
+              turns: ReverseAnimation(_spin),
+              child: SvgPicture.asset('assets/hud_ring_inner.svg',
+                  width: _frame, height: _frame),
+            ),
+            // green sphere on top (circle_green layer 2)
+            Container(
+              width: _orb,
+              height: _orb,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  center: const Alignment(-0.16, -0.24), // 0.42, 0.38
+                  radius: 0.62,
+                  colors: err
+                      ? const [Color(0xFFE0655A), Color(0xFF7A1E14), Color(0xFF2A0A06)]
+                      : const [Color(0xFF22D38A), Color(0xFF0E7A55), Color(0xFF06392A)],
+                  stops: const [0.0, 0.55, 1.0],
+                ),
+                border: Border.all(color: const Color(0x5A3DDC84), width: 2),
+              ),
+              alignment: Alignment.center,
+              child: _centerLabel(),
+            ),
+            // download progress ring around the sphere
+            if (widget.phase == OrbPhase.working)
+              AnimatedBuilder(
+                animation: _spin,
+                builder: (_, _) => SizedBox(
+                  width: _orb + 30,
+                  height: _orb + 30,
+                  child: CustomPaint(
+                    painter: _ProgressPainter(widget.progress, _spin.value),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _centerLabel() {
-    // On the green orb face — dark-green text, like the Android "Click" hint.
     if (widget.phase == OrbPhase.working) {
       final txt = widget.progress >= 0
           ? '${(widget.progress * 100).toStringAsFixed(0)}%'
@@ -83,10 +129,10 @@ class _OrbState extends State<Orb> with TickerProviderStateMixin {
               fontWeight: FontWeight.bold));
     }
     if (widget.phase == OrbPhase.done) {
-      return const Icon(Icons.check_rounded, color: Color(0xFFEFFFF7), size: 66);
+      return const Icon(Icons.check_rounded, color: Color(0xFFEFFFF7), size: 64);
     }
     if (widget.phase == OrbPhase.error) {
-      return const Icon(Icons.close_rounded, color: Color(0xFFFFE3E3), size: 60);
+      return const Icon(Icons.close_rounded, color: Color(0xFFFFE3E3), size: 58);
     }
     if (widget.linkReady) {
       return const Text('Tap',
@@ -100,153 +146,36 @@ class _OrbState extends State<Orb> with TickerProviderStateMixin {
   }
 }
 
-class _OrbPainter extends CustomPainter {
-  _OrbPainter({
-    required this.phase,
-    required this.progress,
-    required this.spin,
-    required this.pulse,
-  });
-
-  final OrbPhase phase;
+class _ProgressPainter extends CustomPainter {
+  _ProgressPainter(this.progress, this.spin);
   final double progress;
-  final double spin; // 0..1
-  final double pulse; // 0..1
-
-  // Palette (matches Android drawables)
-  static const _highlight = Color(0xFF22D38A);
-  static const _mid = Color(0xFF0E7A55);
-  static const _dark = Color(0xFF06392A);
-  static const _errHi = Color(0xFFE0655A);
-  static const _errMid = Color(0xFF7A1E14);
-  static const _bright1 = Color(0xFF34D399);
-  static const _bright2 = Color(0xFF6EE7B7);
-  static const _faint = Color(0x3334D399);
-  static const _faint2 = Color(0x1F34D399);
+  final double spin;
 
   @override
   void paint(Canvas canvas, Size size) {
     final c = Offset(size.width / 2, size.height / 2);
-    final R = size.width / 2; // 145
-    final orbR = R * 0.80; // green sphere radius (~116)
-    final err = phase == OrbPhase.error;
-
-    // 1) outer soft glow
-    final glow = Paint()
-      ..shader = RadialGradient(colors: [
-        (err ? _errHi : _highlight).withValues(alpha: 0.22),
-        const Color(0x00000000),
-      ]).createShader(Rect.fromCircle(center: c, radius: R));
-    canvas.drawCircle(c, R, glow);
-
-    // 2) HUD rings (rotating) — drawn under the orb edge + around it
-    final t = spin * 2 * math.pi;
-    _hudRing(canvas, c, orbR * 1.10, t, ticks: 40); // mid, clockwise
-    _hudRing(canvas, c, orbR * 0.94, -t * 1.35, ticks: 24); // inner, ccw
-
-    // 3) the green sphere (radial gradient, light source top-left)
-    final body = Paint()
-      ..shader = RadialGradient(
-        center: const Alignment(-0.16, -0.24), // 0.42,0.38
-        radius: 0.62,
-        colors: err
-            ? [_errHi, _errMid, const Color(0xFF2A0A06)]
-            : const [_highlight, _mid, _dark],
-        stops: const [0.0, 0.55, 1.0],
-      ).createShader(Rect.fromCircle(center: c, radius: orbR));
-    canvas.drawCircle(c, orbR, body);
-    // thin ring around the sphere
+    final r = size.width / 2 - 3;
     canvas.drawCircle(
         c,
-        orbR - 1,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
-          ..color = const Color(0x5A3DDC84));
-
-    // 4) download progress ring around the sphere
-    if (phase == OrbPhase.working) {
-      final rr = orbR * 1.13;
-      final rect = Rect.fromCircle(center: c, radius: rr);
-      canvas.drawCircle(
-          c,
-          rr,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 4
-            ..color = Colors.white.withValues(alpha: 0.10));
-      final ring = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..strokeWidth = 4
-        ..color = _bright2;
-      if (progress >= 0) {
-        canvas.drawArc(rect, -math.pi / 2, 2 * math.pi * progress, false, ring);
-      } else {
-        canvas.drawArc(rect, t * 2, math.pi * 0.55, false, ring);
-      }
-    }
-  }
-
-  // One HUD ring: faint circle + tick marks + two bright arcs (top+bottom).
-  void _hudRing(Canvas canvas, Offset c, double r, double rot,
-      {required int ticks}) {
-    canvas.save();
-    canvas.translate(c.dx, c.dy);
-    canvas.rotate(rot);
-
-    // faint full circle
-    canvas.drawCircle(
-        Offset.zero,
         r,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 0.8
-          ..color = _faint);
-    // inner faint circle
-    canvas.drawCircle(
-        Offset.zero,
-        r * 0.90,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 0.6
-          ..color = _faint2);
-
-    // tick marks
-    final tick = Paint()
-      ..strokeWidth = 1.0
+          ..strokeWidth = 4
+          ..color = Colors.white.withValues(alpha: 0.10));
+    final ring = Paint()
+      ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
-      ..color = _faint;
-    for (var i = 0; i < ticks; i++) {
-      final a = (i / ticks) * 2 * math.pi;
-      final o1 = Offset(math.cos(a) * (r * 0.90), math.sin(a) * (r * 0.90));
-      final o2 = Offset(math.cos(a) * (r * 0.955), math.sin(a) * (r * 0.955));
-      canvas.drawLine(o1, o2, tick);
+      ..strokeWidth = 4
+      ..color = const Color(0xFF6EE7B7);
+    final rect = Rect.fromCircle(center: c, radius: r);
+    if (progress >= 0) {
+      canvas.drawArc(rect, -math.pi / 2, 2 * math.pi * progress, false, ring);
+    } else {
+      canvas.drawArc(rect, spin * 2 * math.pi, math.pi * 0.55, false, ring);
     }
-
-    // two bright arcs (top ~55°, bottom ~55°)
-    final rect = Rect.fromCircle(center: Offset.zero, radius: r);
-    final arcTop = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = 2.4
-      ..color = _bright1;
-    final arcBot = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = 2.4
-      ..color = _bright2;
-    const span = 0.95; // ~55°
-    canvas.drawArc(rect, -math.pi / 2 - span / 2, span, false, arcTop);
-    canvas.drawArc(rect, math.pi / 2 - span / 2, span, false, arcBot);
-
-    canvas.restore();
   }
 
   @override
-  bool shouldRepaint(covariant _OrbPainter o) =>
-      o.phase != phase ||
-      o.progress != progress ||
-      o.spin != spin ||
-      o.pulse != pulse;
+  bool shouldRepaint(covariant _ProgressPainter o) =>
+      o.progress != progress || o.spin != spin;
 }

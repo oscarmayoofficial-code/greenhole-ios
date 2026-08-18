@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
@@ -265,8 +266,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 top: 6,
                 left: 6,
                 child: IconButton(
-                  icon: const Icon(Icons.info_outline,
-                      color: Color(0xFFB9C0C4), size: 26),
+                  icon: SvgPicture.asset('assets/ic_info.svg',
+                      width: 26, height: 26),
                   onPressed: _showInfo,
                 ),
               ),
@@ -275,8 +276,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 top: 6,
                 right: 6,
                 child: IconButton(
-                  icon: const Icon(Icons.favorite_border,
-                      color: Color(0xFFB9C0C4), size: 26),
+                  icon: SvgPicture.asset('assets/ic_heart.svg',
+                      width: 24, height: 24),
                   onPressed: _showSupport,
                 ),
               ),
@@ -324,15 +325,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   child: InkWell(
                     onTap: _showVideos,
                     borderRadius: BorderRadius.circular(14),
-                    child: const Padding(
-                      padding: EdgeInsets.all(10),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.video_library_outlined,
-                              color: Color(0xFF10B981), size: 28),
-                          SizedBox(height: 5),
-                          Text('VIDEOS',
+                          SvgPicture.asset('assets/ic_videos.svg',
+                              width: 30, height: 30),
+                          const SizedBox(height: 5),
+                          const Text('VIDEOS',
                               style: TextStyle(
                                   color: Color(0xFF10B981),
                                   fontSize: 12,
