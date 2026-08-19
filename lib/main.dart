@@ -323,10 +323,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       onLongPress: _busy ? null : _onOrbLongPress,
                     ),
                     const SizedBox(height: 18),
-                    _StatusText(
-                        phase: _phase,
-                        status: _status,
-                        clipboardUrl: _clipboardUrl),
+                    _StatusText(phase: _phase, status: _status),
                   ],
                 ),
               ),
@@ -396,10 +393,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       builder: (_) => AlertDialog(
         title: const Text('How to use Green Hole'),
         content: const Text(
-          'Green Hole is a simple tool for your videos.\n\n'
-          '• Copy a video link, then TAP the circle to save it to your Photos.\n\n'
-          '• HOLD (long-press) the circle to pick a video and remove its sound.\n\n'
-          'You can also Share a link from another app into Green Hole.',
+          'Green Hole is a simple, private video tool.\n\n'
+          '• Press and HOLD the circle to pick a video from your library and '
+          'remove its sound.\n\n'
+          '• The clean, muted copy is saved to your Photos in a "Green Hole" album.\n\n'
+          'No account or sign-up needed — everything stays on your device.',
         ),
         actions: [
           TextButton(
@@ -416,12 +414,10 @@ class _StatusText extends StatelessWidget {
   const _StatusText({
     required this.phase,
     required this.status,
-    required this.clipboardUrl,
   });
 
   final OrbPhase phase;
   final String status;
-  final String? clipboardUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -438,17 +434,9 @@ class _StatusText extends StatelessWidget {
             style: TextStyle(color: color, fontSize: 15)),
       );
     }
-    if (clipboardUrl != null) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 32),
-        child: Text('Link ready — tap the circle to save',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF34D399), fontSize: 13)),
-      );
-    }
     return const Padding(
       padding: EdgeInsets.symmetric(horizontal: 24),
-      child: Text('Copy a video link, then tap  ·  hold to remove sound',
+      child: Text('Press and hold the circle to remove sound from a video',
           textAlign: TextAlign.center,
           style: TextStyle(color: Color(0xFF9AA0A6), fontSize: 13)),
     );
